@@ -793,6 +793,85 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
           </p>
         </div>
       </div>
+
+      {/* Vertical zoom slider on right side */}
+      <div
+        className={`fixed right-4 top-1/2 -translate-y-1/2 z-40 transition-all duration-500 ${
+          showControls ? 'opacity-100 translate-x-0' : 'opacity-30 translate-x-2'
+        }`}
+        onMouseEnter={resetControlsTimeout}
+      >
+        <div className="flex flex-col items-center gap-2 bg-black/40 backdrop-blur-sm rounded-md p-2">
+          {/* Zoom in button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              userZoomedRef.current = true;
+              setScale(prev => Math.min(3, prev + 0.1));
+              resetControlsTimeout();
+            }}
+            className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-sm flex items-center justify-center transition-colors"
+            title="Phóng to"
+          >
+            <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+
+          {/* Vertical slider */}
+          <div className="relative h-40 w-8 flex items-center justify-center">
+            <input
+              type="range"
+              min="50"
+              max="300"
+              value={Math.round(scale * 100)}
+              onChange={(e) => {
+                userZoomedRef.current = true;
+                setScale(parseInt(e.target.value) / 100);
+                resetControlsTimeout();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute w-40 h-2 bg-white/20 rounded-full appearance-none cursor-pointer transform -rotate-90 origin-center
+                [&::-webkit-slider-thumb]:appearance-none
+                [&::-webkit-slider-thumb]:w-4
+                [&::-webkit-slider-thumb]:h-4
+                [&::-webkit-slider-thumb]:rounded-full
+                [&::-webkit-slider-thumb]:bg-red-500
+                [&::-webkit-slider-thumb]:cursor-pointer
+                [&::-webkit-slider-thumb]:hover:bg-red-400
+                [&::-moz-range-thumb]:w-4
+                [&::-moz-range-thumb]:h-4
+                [&::-moz-range-thumb]:rounded-full
+                [&::-moz-range-thumb]:bg-red-500
+                [&::-moz-range-thumb]:border-0
+                [&::-moz-range-thumb]:cursor-pointer
+                [&::-moz-range-thumb]:hover:bg-red-400"
+              title={`Zoom: ${Math.round(scale * 100)}%`}
+            />
+          </div>
+
+          {/* Zoom percentage */}
+          <div className="text-white/70 text-xs font-mono min-w-[3rem] text-center">
+            {Math.round(scale * 100)}%
+          </div>
+
+          {/* Zoom out button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              userZoomedRef.current = true;
+              setScale(prev => Math.max(0.5, prev - 0.1));
+              resetControlsTimeout();
+            }}
+            className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-sm flex items-center justify-center transition-colors"
+            title="Thu nhỏ"
+          >
+            <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
