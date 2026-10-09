@@ -65,7 +65,7 @@ const BookCard = memo(({ book, onOpen, onDelete, onRename }: { book: Book; onOpe
         {/* Delete button */}
         <button
           onClick={(e) => onDelete(book.id, e)}
-          className="absolute top-2 left-2 w-7 h-7 bg-slate-900/0 group-hover:bg-slate-900/90 backdrop-blur-sm rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-600"
+          className="absolute top-2 left-2 w-7 h-7 bg-black/60 backdrop-blur-sm rounded-md flex items-center justify-center transition-all duration-200 hover:bg-red-600"
           title="Xóa sách"
         >
           <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -892,7 +892,7 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
           resetControlsTimeout();
         }}
         className={`fixed right-3 top-1/2 -translate-y-1/2 z-40 w-5 h-5 flex items-center justify-center transition-all duration-300 ${
-          showZoomSlider ? 'opacity-0 pointer-events-none' : 'opacity-20 hover:opacity-60'
+          showZoomSlider ? 'opacity-0 pointer-events-none' : 'opacity-10 hover:opacity-40'
         }`}
         title="Điều chỉnh zoom"
       >
@@ -908,7 +908,7 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
         }`}
         onMouseEnter={resetControlsTimeout}
       >
-        <div className="flex flex-col items-center gap-1.5 bg-black/10 backdrop-blur-sm rounded-md p-1.5">
+        <div className="flex flex-col items-center gap-1.5 bg-black/5 backdrop-blur-sm rounded-md p-1.5">
           {/* Close button - minimal X */}
           <button
             onClick={(e) => {
