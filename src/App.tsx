@@ -4,7 +4,11 @@ import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { getAllBooks, addBook, deleteBook, Book, updateLastPage } from './db';
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+// Import worker directly via Vite - ensures version matches react-pdf's bundled pdfjs-dist
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 
 type View = 'list' | 'reader';
 
@@ -253,20 +257,26 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [numPages, handleBack, resetControlsTimeout]);
 
-  // Create a Blob URL from the ArrayBuffer to avoid "detached buffer" errors on re-render.
-  // PDF.js detaches the underlying buffer after processing, so we use a Blob URL which is stable.
+  // Create a Blob URL from the ArrayBuffer. Blob URLs are immutable and won't be affected
+  // by PDF.js detaching the underlying buffer. This is the most reliable approach.
   const pdfUrl = useMemo(() => {
-    const blob = new Blob([book.data], { type: 'application/pdf' });
+    if (!book.data || book.data.byteLength === 0) {
+      return null;
+    }
+    // Create a fresh copy of the buffer to ensure it's not detached
+    const bufferCopy = book.data.slice(0);
+    const blob = new Blob([bufferCopy], { type: 'application/pdf' });
     return URL.createObjectURL(blob);
   }, [book.data]);
-
-  // Cleanup blob URL on unmount
+  
+  // Cleanup blob URL on unmount or when it changes
   useEffect(() => {
     return () => {
-      URL.revokeObjectURL(pdfUrl);
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
     };
   }, [pdfUrl]);
-
   return (
     <div
       className="fixed inset-0 bg-neutral-900 overflow-hidden"
@@ -289,32 +299,41 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
         ref={containerRef}
         className="w-full h-full overflow-auto flex justify-center py-8"
       >
-        <Document
-          file={pdfUrl}
-          onLoadSuccess={({ numPages: n }) => {
-            setNumPages(n);
-            setIsLoaded(true);
-          }}
-          loading={
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <svg className="w-10 h-10 animate-spin text-blue-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                <p className="text-white/60">Đang tải sách...</p>
+        {!pdfUrl ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-white/60">Không thể tải sách. Vui lòng thử lại.</p>
+          </div>
+        ) : (
+          <Document
+            file={pdfUrl}
+            onLoadSuccess={({ numPages: n }) => {
+              setNumPages(n);
+              setIsLoaded(true);
+            }}
+            onLoadError={(error) => {
+              console.error('PDF loading error:', error);
+            }}
+            loading={
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <svg className="w-10 h-10 animate-spin text-blue-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <p className="text-white/60">Đang tải sách...</p>
+                </div>
               </div>
-            </div>
-          }
-        >
-          <Page
-            pageNumber={pageNumber}
-            scale={scale}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            className="shadow-2xl"
-          />
-        </Document>
+            }
+          >
+            <Page
+              pageNumber={pageNumber}
+              scale={scale}
+              renderTextLayer={true}
+              renderAnnotationLayer={true}
+              className="shadow-2xl"
+            />
+          </Document>
+        )}
       </div>
 
       {/* Controls - auto hide */}
