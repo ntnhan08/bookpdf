@@ -759,7 +759,7 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
 
   return (
     <div
-      className="fixed inset-0 bg-neutral-900 overflow-hidden"
+      className="fixed inset-0 bg-white overflow-hidden"
       onMouseMove={resetControlsTimeout}
       onTouchStart={(e) => {
         resetControlsTimeout();
@@ -771,10 +771,10 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
       {/* Back Button */}
       <button
         onClick={(e) => { e.stopPropagation(); handleBack(); }}
-        className="fixed top-4 left-4 z-50 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-md flex items-center justify-center transition-all duration-300"
+        className="fixed top-4 left-4 z-50 w-10 h-10 bg-black/5 hover:bg-black/10 backdrop-blur-sm rounded-md flex items-center justify-center transition-all duration-300"
         title="Quay lại (Esc)"
       >
-        <svg className="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 text-black/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
       </button>
@@ -786,7 +786,7 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
         className="fixed left-0 top-0 bottom-0 w-1/4 z-30 cursor-pointer disabled:cursor-default group"
         aria-label="Trang trước"
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); goToNextPage(); resetControlsTimeout(); }}
@@ -794,7 +794,7 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
         className="fixed right-0 top-0 bottom-0 w-1/4 z-30 cursor-pointer disabled:cursor-default group"
         aria-label="Trang sau"
       >
-        <div className="absolute inset-0 bg-gradient-to-l from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-l from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
       </button>
 
       {/* PDF Content with page flip animation */}
@@ -818,9 +818,9 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
                 className="absolute inset-0 pointer-events-none z-10"
                 style={{
                   background: flipState === 'flipping-left'
-                    ? 'linear-gradient(to right, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 40%)'
+                    ? 'linear-gradient(to right, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 40%)'
                     : flipState === 'flipping-right'
-                    ? 'linear-gradient(to left, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 40%)'
+                    ? 'linear-gradient(to left, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 40%)'
                     : 'transparent',
                   animation: flipState === 'flipping-in' ? 'shadowFade 0.3s ease-out forwards' : undefined,
                 }}
@@ -877,27 +877,27 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
           showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
         }`}
       >
-        <div className="px-4 py-2 bg-black/50 backdrop-blur-sm rounded-md">
-          <p className="text-white/80 text-sm font-medium">
+        <div className="px-4 py-2 bg-black/10 backdrop-blur-sm rounded-md">
+          <p className="text-black/60 text-sm font-medium">
             Trang {pageNumber} / {numPages}
           </p>
         </div>
       </div>
 
-      {/* Zoom toggle button */}
+      {/* Zoom toggle button - minimal X icon */}
       <button
         onClick={(e) => {
           e.stopPropagation();
           setShowZoomSlider(!showZoomSlider);
           resetControlsTimeout();
         }}
-        className={`fixed right-4 top-1/2 -translate-y-1/2 z-40 w-8 h-16 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-md flex items-center justify-center transition-all duration-300 ${
-          showZoomSlider ? 'opacity-0 pointer-events-none' : 'opacity-60 hover:opacity-100'
+        className={`fixed right-3 top-1/2 -translate-y-1/2 z-40 w-5 h-5 flex items-center justify-center transition-all duration-300 ${
+          showZoomSlider ? 'opacity-0 pointer-events-none' : 'opacity-20 hover:opacity-60'
         }`}
         title="Điều chỉnh zoom"
       >
-        <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+        <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
 
@@ -908,18 +908,18 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
         }`}
         onMouseEnter={resetControlsTimeout}
       >
-        <div className="flex flex-col items-center gap-1.5 bg-black/30 backdrop-blur-sm rounded-md p-1.5">
-          {/* Close button */}
+        <div className="flex flex-col items-center gap-1.5 bg-black/10 backdrop-blur-sm rounded-md p-1.5">
+          {/* Close button - minimal X */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               setShowZoomSlider(false);
             }}
-            className="w-6 h-6 bg-white/10 hover:bg-white/20 rounded-sm flex items-center justify-center transition-colors"
+            className="w-4 h-4 flex items-center justify-center opacity-40 hover:opacity-80 transition-opacity"
             title="Đóng"
           >
-            <svg className="w-3 h-3 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg className="w-2.5 h-2.5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
 
@@ -931,10 +931,10 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
               setScale(prev => Math.min(3, prev + 0.1));
               resetControlsTimeout();
             }}
-            className="w-6 h-6 bg-white/10 hover:bg-white/20 rounded-sm flex items-center justify-center transition-colors"
+            className="w-6 h-6 bg-black/5 hover:bg-black/10 rounded-sm flex items-center justify-center transition-colors"
             title="Phóng to"
           >
-            <svg className="w-3 h-3 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 text-black/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
           </button>
@@ -950,7 +950,7 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
           />
 
           {/* Zoom percentage */}
-          <div className="text-white/70 text-[10px] font-mono min-w-[2.5rem] text-center">
+          <div className="text-black/50 text-[10px] font-mono min-w-[2.5rem] text-center">
             {Math.round(scale * 100)}%
           </div>
 
@@ -962,10 +962,10 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
               setScale(prev => Math.max(0.5, prev - 0.1));
               resetControlsTimeout();
             }}
-            className="w-6 h-6 bg-white/10 hover:bg-white/20 rounded-sm flex items-center justify-center transition-colors"
+            className="w-6 h-6 bg-black/5 hover:bg-black/10 rounded-sm flex items-center justify-center transition-colors"
             title="Thu nhỏ"
           >
-            <svg className="w-3 h-3 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 text-black/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
             </svg>
           </button>
