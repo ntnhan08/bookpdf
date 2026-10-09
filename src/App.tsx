@@ -16,6 +16,7 @@ function App() {
   const [view, setView] = useState<View>('list');
   const [books, setBooks] = useState<Book[]>([]);
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,12 +59,22 @@ function App() {
     }
   };
 
-  const openBook = async (book: Book) => {
+  const openBook = (book: Book) => {
+    setSelectedBook(book);
+  };
+
+  const startReading = (startPage: number) => {
+    if (!selectedBook) return;
     // Create a copy of the ArrayBuffer to prevent "detached buffer" errors
     // when the same book is opened multiple times
-    const dataCopy = book.data.slice(0);
-    setCurrentBook({ ...book, data: dataCopy });
+    const dataCopy = selectedBook.data.slice(0);
+    setCurrentBook({ ...selectedBook, data: dataCopy, lastPage: startPage });
+    setSelectedBook(null);
     setView('reader');
+  };
+
+  const cancelSelection = () => {
+    setSelectedBook(null);
   };
 
   const goBack = async (lastPage?: number) => {
@@ -78,6 +89,75 @@ function App() {
   if (view === 'reader' && currentBook) {
     return <BookReader book={currentBook} onBack={goBack} />;
   }
+
+  // Page selection modal
+  const PageSelectionModal = () => {
+    if (!selectedBook) return null;
+    
+    const hasLastPage = selectedBook.lastPage > 1;
+    
+    return (
+      <div 
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={cancelSelection}
+      >
+        <div 
+          className="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className="text-xl font-semibold text-white mb-2">
+            Bắt đầu đọc
+          </h2>
+          <p className="text-slate-400 text-sm mb-6 truncate">
+            {selectedBook.name}
+          </p>
+          
+          <div className="space-y-3">
+            {/* Start from page 1 */}
+            <button
+              onClick={() => startReading(1)}
+              className="w-full flex items-center gap-4 p-4 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 hover:border-blue-500 rounded-xl transition-all duration-200 group"
+            >
+              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
+                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-white font-medium">Đọc từ trang 1</p>
+                <p className="text-slate-400 text-xs">Bắt đầu lại từ đầu</p>
+              </div>
+            </button>
+
+            {/* Continue from last page */}
+            {hasLastPage && (
+              <button
+                onClick={() => startReading(selectedBook.lastPage)}
+                className="w-full flex items-center gap-4 p-4 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 hover:border-purple-500 rounded-xl transition-all duration-200 group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
+                  <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-white font-medium">Tiếp tục từ trang {selectedBook.lastPage}</p>
+                  <p className="text-slate-400 text-xs">Đọc tiếp từ lần đọc trước</p>
+                </div>
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={cancelSelection}
+            className="w-full mt-4 py-2 text-slate-400 hover:text-white text-sm transition-colors"
+          >
+            Hủy
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
@@ -198,6 +278,9 @@ function App() {
           </div>
         )}
       </main>
+
+      {/* Page Selection Modal */}
+      <PageSelectionModal />
     </div>
   );
 }
