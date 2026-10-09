@@ -321,12 +321,6 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         goToPrevPage();
         resetControlsTimeout();
-      } else if (e.key === '+' || e.key === '=') {
-        setScale(prev => Math.min(prev + 0.1, 3));
-        resetControlsTimeout();
-      } else if (e.key === '-') {
-        setScale(prev => Math.max(prev - 0.1, 0.5));
-        resetControlsTimeout();
       } else if (e.key === 'Escape') {
         handleBack();
       }
@@ -334,6 +328,23 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [numPages, handleBack, resetControlsTimeout, goToNextPage, goToPrevPage]);
+
+  // Ctrl + wheel to zoom
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        setScale(prev => {
+          const newScale = Math.max(0.5, Math.min(3, prev + delta));
+          return newScale;
+        });
+        resetControlsTimeout();
+      }
+    };
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, [resetControlsTimeout]);
 
   // Create a Blob URL from the ArrayBuffer. Blob URLs are immutable and won't be affected
   // by PDF.js detaching the underlying buffer. This is the most reliable approach.
@@ -466,99 +477,15 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
         )}
       </div>
 
-      {/* Controls - auto hide */}
+      {/* Page indicator - simple and minimal */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-40 transition-all duration-500 ${
+        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-500 ${
           showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
         }`}
       >
-        <div className="bg-gradient-to-t from-black/90 via-black/70 to-transparent pt-16 pb-6 px-4">
-          <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
-            {/* Zoom Controls */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setScale(prev => Math.max(prev - 0.1, 0.5))}
-                className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
-                title="Thu nhỏ (-)"
-              >
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                </svg>
-              </button>
-              <span className="text-white/80 text-sm font-mono w-12 text-center">
-                {Math.round(scale * 100)}%
-              </span>
-              <button
-                onClick={() => setScale(prev => Math.min(prev + 0.1, 3))}
-                className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
-                title="Phóng to (+)"
-              >
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Page Navigation */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={goToPrevPage}
-                disabled={pageNumber <= 1 || isFlipping}
-                className="w-9 h-9 bg-white/10 hover:bg-white/20 disabled:opacity-30 rounded-lg flex items-center justify-center transition-colors"
-              >
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={1}
-                  max={numPages}
-                  value={pageNumber}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    if (val >= 1 && val <= numPages && !isFlipping) setPageNumber(val);
-                  }}
-                  className="w-14 h-9 bg-white/10 border border-white/20 rounded-lg text-center text-white text-sm focus:outline-none focus:border-blue-400"
-                />
-                <span className="text-white/60 text-sm">/ {numPages}</span>
-              </div>
-              <button
-                onClick={goToNextPage}
-                disabled={pageNumber >= numPages || isFlipping}
-                className="w-9 h-9 bg-white/10 hover:bg-white/20 disabled:opacity-30 rounded-lg flex items-center justify-center transition-colors"
-              >
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Page slider */}
-            <div className="hidden sm:block flex-1 max-w-[200px]">
-              <input
-                type="range"
-                min={1}
-                max={numPages}
-                value={pageNumber}
-                onChange={(e) => setPageNumber(parseInt(e.target.value))}
-                className="w-full h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Book title - shows briefly */}
-      <div
-        className={`fixed top-4 left-1/2 -translate-x-1/2 z-40 transition-all duration-500 ${
-          showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'
-        }`}
-      >
         <div className="px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full">
-          <p className="text-white/80 text-sm font-medium truncate max-w-[300px]">
-            {book.name}
+          <p className="text-white/80 text-sm font-medium">
+            Trang {pageNumber} / {numPages}
           </p>
         </div>
       </div>
