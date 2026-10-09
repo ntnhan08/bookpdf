@@ -209,12 +209,90 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
   const [scale, setScale] = useState<number>(1.2);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [flipDirection, setFlipDirection] = useState<'left' | 'right' | null>(null);
+  const [showSwipeHint, setShowSwipeHint] = useState(true);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
+  const hasSwiped = useRef(false);
 
   const handleBack = useCallback(() => {
     onBack(pageNumber);
   }, [onBack, pageNumber]);
+
+  const [showPageAppear, setShowPageAppear] = useState(false);
+
+  const goToNextPage = useCallback(() => {
+    if (pageNumber < numPages && !isFlipping) {
+      setFlipDirection('left');
+      setIsFlipping(true);
+      setTimeout(() => {
+        setPageNumber(prev => Math.min(prev + 1, numPages));
+        setShowPageAppear(true);
+        setTimeout(() => {
+          setIsFlipping(false);
+          setFlipDirection(null);
+          setShowPageAppear(false);
+        }, 300);
+      }, 400);
+    }
+  }, [pageNumber, numPages, isFlipping]);
+
+  const goToPrevPage = useCallback(() => {
+    if (pageNumber > 1 && !isFlipping) {
+      setFlipDirection('right');
+      setIsFlipping(true);
+      setTimeout(() => {
+        setPageNumber(prev => Math.max(prev - 1, 1));
+        setShowPageAppear(true);
+        setTimeout(() => {
+          setIsFlipping(false);
+          setFlipDirection(null);
+          setShowPageAppear(false);
+        }, 300);
+      }, 400);
+    }
+  }, [pageNumber, isFlipping]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    touchEndX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    const swipeDistance = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 50; // Minimum distance to trigger swipe
+
+    if (Math.abs(swipeDistance) > minSwipeDistance) {
+      hasSwiped.current = true;
+      setShowSwipeHint(false);
+      if (swipeDistance > 0) {
+        // Swipe left - go to next page
+        goToNextPage();
+      } else {
+        // Swipe right - go to previous page
+        goToPrevPage();
+      }
+    }
+  }, [goToNextPage, goToPrevPage]);
+
+  // Auto-hide swipe hint after 5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!hasSwiped.current) {
+        setShowSwipeHint(false);
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const resetControlsTimeout = useCallback(() => {
     if (controlsTimeoutRef.current) {
@@ -238,10 +316,10 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        setPageNumber(prev => Math.min(prev + 1, numPages));
+        goToNextPage();
         resetControlsTimeout();
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        setPageNumber(prev => Math.max(prev - 1, 1));
+        goToPrevPage();
         resetControlsTimeout();
       } else if (e.key === '+' || e.key === '=') {
         setScale(prev => Math.min(prev + 0.1, 3));
@@ -255,7 +333,7 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [numPages, handleBack, resetControlsTimeout]);
+  }, [numPages, handleBack, resetControlsTimeout, goToNextPage, goToPrevPage]);
 
   // Create a Blob URL from the ArrayBuffer. Blob URLs are immutable and won't be affected
   // by PDF.js detaching the underlying buffer. This is the most reliable approach.
@@ -281,11 +359,19 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
     <div
       className="fixed inset-0 bg-neutral-900 overflow-hidden"
       onMouseMove={resetControlsTimeout}
-      onTouchStart={resetControlsTimeout}
+      onTouchStart={(e) => {
+        resetControlsTimeout();
+        handleTouchStart(e);
+      }}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Back Button - always visible but small */}
       <button
-        onClick={handleBack}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleBack();
+        }}
         className="fixed top-4 left-4 z-50 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center transition-all duration-300"
         title="Quay lại (Esc)"
       >
@@ -294,45 +380,89 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
         </svg>
       </button>
 
-      {/* PDF Content */}
+      {/* Tap zones for page navigation */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          goToPrevPage();
+          resetControlsTimeout();
+        }}
+        disabled={pageNumber <= 1 || isFlipping}
+        className="fixed left-0 top-0 bottom-0 w-1/4 z-30 cursor-pointer disabled:cursor-default group"
+        aria-label="Trang trước"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+      </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          goToNextPage();
+          resetControlsTimeout();
+        }}
+        disabled={pageNumber >= numPages || isFlipping}
+        className="fixed right-0 top-0 bottom-0 w-1/4 z-30 cursor-pointer disabled:cursor-default group"
+        aria-label="Trang sau"
+      >
+        <div className="absolute inset-0 bg-gradient-to-l from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+      </button>
+
+      {/* PDF Content with page flip animation */}
       <div
         ref={containerRef}
         className="w-full h-full overflow-auto flex justify-center py-8"
+        style={{ perspective: '2000px' }}
       >
         {!pdfUrl ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-white/60">Không thể tải sách. Vui lòng thử lại.</p>
           </div>
         ) : (
-          <Document
-            file={pdfUrl}
-            onLoadSuccess={({ numPages: n }) => {
-              setNumPages(n);
-              setIsLoaded(true);
+          <div
+            className={`relative ${
+              isFlipping && flipDirection === 'left'
+                ? 'page-flip-left'
+                : isFlipping && flipDirection === 'right'
+                ? 'page-flip-right'
+                : showPageAppear
+                ? 'page-appear'
+                : ''
+            }`}
+            style={{
+              transformStyle: 'preserve-3d',
+              transformOrigin: flipDirection === 'left' ? 'right center' : flipDirection === 'right' ? 'left center' : 'center center',
+              boxShadow: isFlipping ? '0 30px 60px -15px rgba(0, 0, 0, 0.9)' : '0 10px 30px -5px rgba(0, 0, 0, 0.3)',
             }}
-            onLoadError={(error) => {
-              console.error('PDF loading error:', error);
-            }}
-            loading={
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <svg className="w-10 h-10 animate-spin text-blue-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  <p className="text-white/60">Đang tải sách...</p>
-                </div>
-              </div>
-            }
           >
-            <Page
-              pageNumber={pageNumber}
-              scale={scale}
-              renderTextLayer={true}
-              renderAnnotationLayer={true}
-              className="shadow-2xl"
-            />
-          </Document>
+            <Document
+              file={pdfUrl}
+              onLoadSuccess={({ numPages: n }) => {
+                setNumPages(n);
+                setIsLoaded(true);
+              }}
+              onLoadError={(error) => {
+                console.error('PDF loading error:', error);
+              }}
+              loading={
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <svg className="w-10 h-10 animate-spin text-blue-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    <p className="text-white/60">Đang tải sách...</p>
+                  </div>
+                </div>
+              }
+            >
+              <Page
+                pageNumber={pageNumber}
+                scale={scale}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+                className="shadow-2xl"
+              />
+            </Document>
+          </div>
         )}
       </div>
 
@@ -372,8 +502,8 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
             {/* Page Navigation */}
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setPageNumber(prev => Math.max(prev - 1, 1))}
-                disabled={pageNumber <= 1}
+                onClick={goToPrevPage}
+                disabled={pageNumber <= 1 || isFlipping}
                 className="w-9 h-9 bg-white/10 hover:bg-white/20 disabled:opacity-30 rounded-lg flex items-center justify-center transition-colors"
               >
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -388,15 +518,15 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
                   value={pageNumber}
                   onChange={(e) => {
                     const val = parseInt(e.target.value);
-                    if (val >= 1 && val <= numPages) setPageNumber(val);
+                    if (val >= 1 && val <= numPages && !isFlipping) setPageNumber(val);
                   }}
                   className="w-14 h-9 bg-white/10 border border-white/20 rounded-lg text-center text-white text-sm focus:outline-none focus:border-blue-400"
                 />
                 <span className="text-white/60 text-sm">/ {numPages}</span>
               </div>
               <button
-                onClick={() => setPageNumber(prev => Math.min(prev + 1, numPages))}
-                disabled={pageNumber >= numPages}
+                onClick={goToNextPage}
+                disabled={pageNumber >= numPages || isFlipping}
                 className="w-9 h-9 bg-white/10 hover:bg-white/20 disabled:opacity-30 rounded-lg flex items-center justify-center transition-colors"
               >
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -432,6 +562,21 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
           </p>
         </div>
       </div>
+
+      {/* Swipe hint */}
+      {showSwipeHint && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 animate-pulse">
+          <div className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full">
+            <svg className="w-5 h-5 text-white/70 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+            </svg>
+            <span className="text-white/70 text-sm">Vuốt để chuyển trang</span>
+            <svg className="w-5 h-5 text-white/70 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

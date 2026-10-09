@@ -1,1 +1,55 @@
 @import "tailwindcss";
+
+/* Page flip animation */
+@keyframes pageFlipLeft {
+  0% {
+    transform: rotateY(0deg) scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: rotateY(-45deg) scale(0.98);
+    filter: brightness(0.8);
+  }
+  100% {
+    transform: rotateY(-90deg) scale(0.95);
+    filter: brightness(0.7);
+  }
+}
+
+@keyframes pageFlipRight {
+  0% {
+    transform: rotateY(0deg) scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: rotateY(45deg) scale(0.98);
+    filter: brightness(0.8);
+  }
+  100% {
+    transform: rotateY(90deg) scale(0.95);
+    filter: brightness(0.7);
+  }
+}
+
+@keyframes pageAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.page-flip-left {
+  animation: pageFlipLeft 0.5s ease-in-out forwards;
+}
+
+.page-flip-right {
+  animation: pageFlipRight 0.5s ease-in-out forwards;
+}
+
+.page-appear {
+  animation: pageAppear 0.3s ease-out forwards;
+}
