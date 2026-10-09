@@ -1,55 +1,106 @@
 @import "tailwindcss";
 
-/* Page flip animation */
-@keyframes pageFlipLeft {
+/* Smooth page flip animations - realistic book effect */
+@keyframes flipOutLeft {
   0% {
-    transform: rotateY(0deg) scale(1);
-    filter: brightness(1);
+    transform: rotateY(0deg) translateZ(0);
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
   }
-  50% {
-    transform: rotateY(-45deg) scale(0.98);
-    filter: brightness(0.8);
+  30% {
+    filter: brightness(0.85) drop-shadow(8px 0 20px rgba(0, 0, 0, 0.4));
   }
   100% {
-    transform: rotateY(-90deg) scale(0.95);
-    filter: brightness(0.7);
+    transform: rotateY(-90deg) translateZ(-50px);
+    filter: brightness(0.4) drop-shadow(20px 0 40px rgba(0, 0, 0, 0.8));
   }
 }
 
-@keyframes pageFlipRight {
+@keyframes flipOutRight {
   0% {
-    transform: rotateY(0deg) scale(1);
-    filter: brightness(1);
+    transform: rotateY(0deg) translateZ(0);
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
   }
-  50% {
-    transform: rotateY(45deg) scale(0.98);
-    filter: brightness(0.8);
+  30% {
+    filter: brightness(0.85) drop-shadow(-8px 0 20px rgba(0, 0, 0, 0.4));
   }
   100% {
-    transform: rotateY(90deg) scale(0.95);
-    filter: brightness(0.7);
+    transform: rotateY(90deg) translateZ(-50px);
+    filter: brightness(0.4) drop-shadow(-20px 0 40px rgba(0, 0, 0, 0.8));
   }
 }
 
-@keyframes pageAppear {
+@keyframes flipIn {
   0% {
-    opacity: 0;
-    transform: scale(0.95);
+    transform: rotateY(0deg) translateZ(-30px) scale(0.97);
+    filter: brightness(0.6);
+    opacity: 0.7;
+  }
+  50% {
+    filter: brightness(0.9);
+    opacity: 0.9;
   }
   100% {
+    transform: rotateY(0deg) translateZ(0) scale(1);
+    filter: brightness(1);
     opacity: 1;
-    transform: scale(1);
   }
 }
 
-.page-flip-left {
-  animation: pageFlipLeft 0.5s ease-in-out forwards;
+@keyframes shadowFade {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
-.page-flip-right {
-  animation: pageFlipRight 0.5s ease-in-out forwards;
+/* Modal animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.page-appear {
-  animation: pageAppear 0.3s ease-out forwards;
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Page wrapper for 3D effects */
+.page-wrapper {
+  will-change: transform, filter, opacity;
+  transform-origin: center center;
+}
+
+/* Smooth scrolling */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for reader */
+.overflow-auto::-webkit-scrollbar {
+  width: 8px;
+}
+
+.overflow-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
