@@ -237,10 +237,25 @@ function App() {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadBooks();
+  }, []);
+
+  // Track online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const loadBooks = useCallback(async () => {
@@ -321,6 +336,11 @@ function App() {
             <h1 className="text-2xl font-bold text-white">
               PDF Book Reader
             </h1>
+            {isOffline && (
+              <span className="px-2 py-1 bg-amber-600/20 border border-amber-600/40 rounded-sm text-xs text-amber-400 font-medium">
+                Offline
+              </span>
+            )}
           </div>
           <button
             onClick={() => fileInputRef.current?.click()}
