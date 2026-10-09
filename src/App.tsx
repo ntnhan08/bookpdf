@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -55,7 +55,10 @@ function App() {
   };
 
   const openBook = async (book: Book) => {
-    setCurrentBook(book);
+    // Create a copy of the ArrayBuffer to prevent "detached buffer" errors
+    // when the same book is opened multiple times
+    const dataCopy = book.data.slice(0);
+    setCurrentBook({ ...book, data: dataCopy });
     setView('reader');
   };
 
@@ -250,7 +253,19 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [numPages, handleBack, resetControlsTimeout]);
 
-  const pdfData = new Uint8Array(book.data);
+  // Create a Blob URL from the ArrayBuffer to avoid "detached buffer" errors on re-render.
+  // PDF.js detaches the underlying buffer after processing, so we use a Blob URL which is stable.
+  const pdfUrl = useMemo(() => {
+    const blob = new Blob([book.data], { type: 'application/pdf' });
+    return URL.createObjectURL(blob);
+  }, [book.data]);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      URL.revokeObjectURL(pdfUrl);
+    };
+  }, [pdfUrl]);
 
   return (
     <div
@@ -275,7 +290,7 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
         className="w-full h-full overflow-auto flex justify-center py-8"
       >
         <Document
-          file={{ data: pdfData }}
+          file={pdfUrl}
           onLoadSuccess={({ numPages: n }) => {
             setNumPages(n);
             setIsLoaded(true);
