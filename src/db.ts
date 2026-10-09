@@ -73,3 +73,12 @@ export async function updateLastPage(id: string, page: number): Promise<void> {
     await db.put('books', book);
   }
 }
+
+export async function renameBook(id: string, newName: string): Promise<void> {
+  const db = await getDB();
+  const book = await db.get('books', id);
+  if (book) {
+    book.name = newName;
+    await db.put('books', book);
+  }
+}
