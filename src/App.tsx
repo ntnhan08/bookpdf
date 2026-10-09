@@ -412,10 +412,8 @@ function App() {
 function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) => void }) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(book.lastPage || 1);
-  
-  // Detect mobile and set default scale
-  const isMobile = window.innerWidth < 768;
-  const [scale, setScale] = useState<number>(isMobile ? 0.75 : 1.2);
+  const [scale, setScale] = useState<number>(1.0);
+  const [pdfPageSize, setPdfPageSize] = useState<{ width: number; height: number } | null>(null);
   
   const [showControls, setShowControls] = useState(true);
   const [flipState, setFlipState] = useState<'idle' | 'flipping-left' | 'flipping-right' | 'flipping-in'>('idle');
@@ -429,6 +427,56 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
   const initialDistance = useRef<number>(0);
   const initialScale = useRef<number>(scale);
   const isPinching = useRef<boolean>(false);
+  const pdfDocRef = useRef<any>(null);
+  
+  // Auto-fit scale calculation
+  const calculateOptimalScale = useCallback(() => {
+    if (!pdfPageSize || !containerRef.current) return;
+    
+    const containerWidth = containerRef.current.clientWidth;
+    const containerHeight = containerRef.current.clientHeight;
+    
+    // Padding for comfortable reading
+    const horizontalPadding = window.innerWidth < 768 ? 40 : 80;
+    const verticalPadding = window.innerWidth < 768 ? 20 : 40;
+    
+    const availableWidth = containerWidth - horizontalPadding;
+    const availableHeight = containerHeight - verticalPadding;
+    
+    // Calculate scale to fit width (primary for reading)
+    const scaleToFitWidth = availableWidth / pdfPageSize.width;
+    const scaleToFitHeight = availableHeight / pdfPageSize.height;
+    
+    // Use width-based scale but ensure it doesn't exceed height
+    // Add small multiplier for better readability
+    const optimalScale = Math.min(scaleToFitWidth, scaleToFitHeight);
+    
+    // Clamp between reasonable bounds (50% - 250%)
+    const finalScale = Math.max(0.5, Math.min(2.5, optimalScale));
+    
+    setScale(finalScale);
+  }, [pdfPageSize]);
+  
+  // Recalculate on resize (only if user hasn't manually zoomed)
+  const userZoomedRef = useRef<boolean>(false);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      if (!userZoomedRef.current) {
+        calculateOptimalScale();
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [calculateOptimalScale]);
+  
+  // Calculate scale when PDF page size is known
+  useEffect(() => {
+    if (pdfPageSize) {
+      calculateOptimalScale();
+    }
+  }, [pdfPageSize, calculateOptimalScale]);
 
   const handleBack = useCallback(() => {
     onBack(pageNumber);
@@ -502,6 +550,7 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
     if (e.touches.length === 2 && isPinching.current) {
       // Pinch-to-zoom move
       e.preventDefault();
+      userZoomedRef.current = true;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const currentDistance = Math.sqrt(dx * dx + dy * dy);
@@ -563,6 +612,7 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
+        userZoomedRef.current = true;
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
         setScale(prev => Math.max(0.5, Math.min(3, prev + delta)));
         resetControlsTimeout();
@@ -688,11 +738,22 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
             )}
             <Document
               file={pdfUrl}
-              onLoadSuccess={({ numPages: n }) => {
+              onLoadSuccess={async (documentProxy: any) => {
+                const n = documentProxy.numPages;
                 setNumPages(n);
                 // Clamp page number if it exceeds total pages
                 if (pageNumber > n) {
                   setPageNumber(n);
+                }
+                
+                // Get PDF page size for auto-fit calculation
+                try {
+                  pdfDocRef.current = documentProxy;
+                  const page = await documentProxy.getPage(1);
+                  const viewport = page.getViewport({ scale: 1.0 });
+                  setPdfPageSize({ width: viewport.width, height: viewport.height });
+                } catch (err) {
+                  console.error('Error getting page size:', err);
                 }
               }}
               onLoadError={(error) => console.error('PDF loading error:', error)}
