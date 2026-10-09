@@ -412,7 +412,11 @@ function App() {
 function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) => void }) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(book.lastPage || 1);
-  const [scale, setScale] = useState<number>(1.2);
+  
+  // Detect mobile and set default scale
+  const isMobile = window.innerWidth < 768;
+  const [scale, setScale] = useState<number>(isMobile ? 0.75 : 1.2);
+  
   const [showControls, setShowControls] = useState(true);
   const [flipState, setFlipState] = useState<'idle' | 'flipping-left' | 'flipping-right' | 'flipping-in'>('idle');
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -420,6 +424,11 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
   const touchStartX = useRef<number>(0);
   const touchEndX = useRef<number>(0);
   const isFlippingRef = useRef(false);
+  
+  // Pinch-to-zoom refs
+  const initialDistance = useRef<number>(0);
+  const initialScale = useRef<number>(scale);
+  const isPinching = useRef<boolean>(false);
 
   const handleBack = useCallback(() => {
     onBack(pageNumber);
@@ -473,24 +482,56 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
     }
   }, [pageNumber, goToPage]);
 
-  // Touch handlers for swipe
+  // Touch handlers for swipe and pinch-to-zoom
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchEndX.current = e.touches[0].clientX;
-  }, []);
+    if (e.touches.length === 2) {
+      // Pinch-to-zoom start
+      isPinching.current = true;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      initialDistance.current = Math.sqrt(dx * dx + dy * dy);
+      initialScale.current = scale;
+    } else if (e.touches.length === 1) {
+      // Swipe start
+      touchStartX.current = e.touches[0].clientX;
+      touchEndX.current = e.touches[0].clientX;
+    }
+  }, [scale]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
+    if (e.touches.length === 2 && isPinching.current) {
+      // Pinch-to-zoom move
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const currentDistance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (initialDistance.current > 0) {
+        const scaleRatio = currentDistance / initialDistance.current;
+        const newScale = initialScale.current * scaleRatio;
+        setScale(Math.max(0.5, Math.min(3, newScale)));
+      }
+    } else if (e.touches.length === 1 && !isPinching.current) {
+      // Swipe move
+      touchEndX.current = e.touches[0].clientX;
+    }
   }, []);
 
   const handleTouchEnd = useCallback(() => {
-    const swipeDistance = touchStartX.current - touchEndX.current;
-    const minSwipeDistance = 50;
-    if (Math.abs(swipeDistance) > minSwipeDistance) {
-      if (swipeDistance > 0) {
-        goToNextPage();
-      } else {
-        goToPrevPage();
+    if (isPinching.current) {
+      // Pinch end
+      isPinching.current = false;
+      initialDistance.current = 0;
+    } else {
+      // Swipe end
+      const swipeDistance = touchStartX.current - touchEndX.current;
+      const minSwipeDistance = 50;
+      if (Math.abs(swipeDistance) > minSwipeDistance) {
+        if (swipeDistance > 0) {
+          goToNextPage();
+        } else {
+          goToPrevPage();
+        }
       }
     }
   }, [goToNextPage, goToPrevPage]);
