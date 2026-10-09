@@ -408,6 +408,95 @@ function App() {
   );
 }
 
+// Custom vertical zoom slider with full touch/mouse support
+function VerticalZoomSlider({ value, onChange }: { value: number; onChange: (scale: number) => void }) {
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+
+  const MIN = 0.5;
+  const MAX = 3.0;
+  const TRACK_HEIGHT = 96; // h-24 = 96px
+
+  const getScaleFromPosition = useCallback((clientY: number) => {
+    if (!sliderRef.current) return value;
+    const rect = sliderRef.current.getBoundingClientRect();
+    const relativeY = clientY - rect.top;
+    const percentage = 1 - Math.max(0, Math.min(1, relativeY / rect.height));
+    return MIN + percentage * (MAX - MIN);
+  }, [value]);
+
+  const handleStart = useCallback((clientY: number) => {
+    isDragging.current = true;
+    onChange(getScaleFromPosition(clientY));
+  }, [onChange, getScaleFromPosition]);
+
+  const handleMove = useCallback((clientY: number) => {
+    if (!isDragging.current) return;
+    onChange(getScaleFromPosition(clientY));
+  }, [onChange, getScaleFromPosition]);
+
+  const handleEnd = useCallback(() => {
+    isDragging.current = false;
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => handleMove(e.clientY);
+    const handleMouseUp = () => handleEnd();
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isDragging.current) {
+        e.preventDefault();
+        handleMove(e.touches[0].clientY);
+      }
+    };
+    const handleTouchEnd = () => handleEnd();
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [handleMove, handleEnd]);
+
+  // Calculate thumb position (0% = top = max zoom, 100% = bottom = min zoom)
+  const thumbPosition = ((MAX - value) / (MAX - MIN)) * 100;
+
+  return (
+    <div
+      ref={sliderRef}
+      className="relative h-24 w-6 flex items-center justify-center cursor-pointer"
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        handleStart(e.clientY);
+      }}
+      onTouchStart={(e) => {
+        e.stopPropagation();
+        handleStart(e.touches[0].clientY);
+      }}
+    >
+      {/* Track background */}
+      <div className="absolute w-1 h-full bg-white/20 rounded-full" />
+      
+      {/* Filled track */}
+      <div
+        className="absolute w-1 bg-red-500/60 rounded-full bottom-0"
+        style={{ height: `${100 - thumbPosition}%` }}
+      />
+      
+      {/* Thumb */}
+      <div
+        className="absolute w-3 h-3 rounded-full bg-red-500 shadow-lg pointer-events-none"
+        style={{ top: `calc(${thumbPosition}% - 6px)` }}
+      />
+    </div>
+  );
+}
+
 // Book Reader Component
 function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) => void }) {
   const [numPages, setNumPages] = useState<number>(0);
@@ -416,6 +505,7 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
   const [pdfPageSize, setPdfPageSize] = useState<{ width: number; height: number } | null>(null);
   
   const [showControls, setShowControls] = useState(true);
+  const [showZoomSlider, setShowZoomSlider] = useState(false);
   const [flipState, setFlipState] = useState<'idle' | 'flipping-left' | 'flipping-right' | 'flipping-in'>('idle');
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -794,14 +884,45 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
         </div>
       </div>
 
+      {/* Zoom toggle button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowZoomSlider(!showZoomSlider);
+          resetControlsTimeout();
+        }}
+        className={`fixed right-4 top-1/2 -translate-y-1/2 z-40 w-8 h-16 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-md flex items-center justify-center transition-all duration-300 ${
+          showZoomSlider ? 'opacity-0 pointer-events-none' : 'opacity-60 hover:opacity-100'
+        }`}
+        title="Điều chỉnh zoom"
+      >
+        <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+        </svg>
+      </button>
+
       {/* Vertical zoom slider on right side */}
       <div
-        className={`fixed right-4 top-1/2 -translate-y-1/2 z-40 transition-all duration-500 ${
-          showControls ? 'opacity-100 translate-x-0' : 'opacity-30 translate-x-2'
+        className={`fixed right-4 top-1/2 -translate-y-1/2 z-40 transition-all duration-300 ${
+          showZoomSlider ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'
         }`}
         onMouseEnter={resetControlsTimeout}
       >
-        <div className="flex flex-col items-center gap-2 bg-black/40 backdrop-blur-sm rounded-md p-2">
+        <div className="flex flex-col items-center gap-1.5 bg-black/30 backdrop-blur-sm rounded-md p-1.5">
+          {/* Close button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowZoomSlider(false);
+            }}
+            className="w-6 h-6 bg-white/10 hover:bg-white/20 rounded-sm flex items-center justify-center transition-colors"
+            title="Đóng"
+          >
+            <svg className="w-3 h-3 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
           {/* Zoom in button */}
           <button
             onClick={(e) => {
@@ -810,48 +931,26 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
               setScale(prev => Math.min(3, prev + 0.1));
               resetControlsTimeout();
             }}
-            className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-sm flex items-center justify-center transition-colors"
+            className="w-6 h-6 bg-white/10 hover:bg-white/20 rounded-sm flex items-center justify-center transition-colors"
             title="Phóng to"
           >
-            <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
           </button>
 
-          {/* Vertical slider */}
-          <div className="relative h-40 w-8 flex items-center justify-center">
-            <input
-              type="range"
-              min="50"
-              max="300"
-              value={Math.round(scale * 100)}
-              onChange={(e) => {
-                userZoomedRef.current = true;
-                setScale(parseInt(e.target.value) / 100);
-                resetControlsTimeout();
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute w-40 h-2 bg-white/20 rounded-full appearance-none cursor-pointer transform -rotate-90 origin-center
-                [&::-webkit-slider-thumb]:appearance-none
-                [&::-webkit-slider-thumb]:w-4
-                [&::-webkit-slider-thumb]:h-4
-                [&::-webkit-slider-thumb]:rounded-full
-                [&::-webkit-slider-thumb]:bg-red-500
-                [&::-webkit-slider-thumb]:cursor-pointer
-                [&::-webkit-slider-thumb]:hover:bg-red-400
-                [&::-moz-range-thumb]:w-4
-                [&::-moz-range-thumb]:h-4
-                [&::-moz-range-thumb]:rounded-full
-                [&::-moz-range-thumb]:bg-red-500
-                [&::-moz-range-thumb]:border-0
-                [&::-moz-range-thumb]:cursor-pointer
-                [&::-moz-range-thumb]:hover:bg-red-400"
-              title={`Zoom: ${Math.round(scale * 100)}%`}
-            />
-          </div>
+          {/* Custom vertical slider with full touch support */}
+          <VerticalZoomSlider
+            value={scale}
+            onChange={(newScale) => {
+              userZoomedRef.current = true;
+              setScale(newScale);
+              resetControlsTimeout();
+            }}
+          />
 
           {/* Zoom percentage */}
-          <div className="text-white/70 text-xs font-mono min-w-[3rem] text-center">
+          <div className="text-white/70 text-[10px] font-mono min-w-[2.5rem] text-center">
             {Math.round(scale * 100)}%
           </div>
 
@@ -863,10 +962,10 @@ function BookReader({ book, onBack }: { book: Book; onBack: (lastPage?: number) 
               setScale(prev => Math.max(0.5, prev - 0.1));
               resetControlsTimeout();
             }}
-            className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-sm flex items-center justify-center transition-colors"
+            className="w-6 h-6 bg-white/10 hover:bg-white/20 rounded-sm flex items-center justify-center transition-colors"
             title="Thu nhỏ"
           >
-            <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
             </svg>
           </button>
